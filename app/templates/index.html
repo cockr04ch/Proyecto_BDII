@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rutas más cortas con Neo4j</title>
+    <style>
+        body { font-family: sans-serif; margin: 2em; background-color: #f0f2f5; color: #333; }
+        h1, h2 { color: #005b96; }
+        .container { max-width: 800px; margin: 0 auto; background: #fff; padding: 2em; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        ul { list-style-type: none; padding: 0; }
+        li { background: #f9f9f9; margin: 8px 0; padding: 12px; border-radius: 5px; border-left: 4px solid #007bff; }
+        pre { white-space: pre-wrap; word-wrap: break-word; background: #eee; padding: 1em; border-radius: 5px; }
+        .controles { margin-bottom: 2em; padding: 1.5em; background: #eef; border-radius: 8px; display: flex; align-items: center; gap: 1em; flex-wrap: wrap; }
+        .controles label { font-weight: bold; }
+        .controles select, .controles button { padding: 10px; font-size: 1em; border-radius: 5px; border: 1px solid #ccc; }
+        .controles button { background-color: #007bff; color: white; cursor: pointer; border: none; }
+        .controles button:hover { background-color: #0056b3; }
+        #resultado-ruta { margin-top: 1em; }
+        #resultado-ruta h3 { color: #28a745; }
+        #resultado-ruta ol { padding-left: 20px; }
+        #resultado-ruta li { border-left-color: #28a745; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Calcular la ruta más corta</h1>
+        <div class="controles">
+            <label for="start-node">Inicio:</label>
+            <select id="start-node"></select>
+
+            <label for="end-node">Fin:</label>
+            <select id="end-node"></select>
+
+            <button id="calculate-route">Calcular Ruta</button>
+        </div>
+
+        <h2>Resultado</h2>
+        <div id="resultado-ruta">
+            <p>Selecciona un nodo de inicio y fin y haz clic en "Calcular Ruta".</p>
+        </div>
+
+        <h2>Nodos Disponibles</h2>
+        <ul id="lista-nodos">
+            <!-- Los nodos se cargarán aquí -->
+        </ul>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const startNodeSelect = document.getElementById('start-node');
+            const endNodeSelect = document.getElementById('end-node');
+            const calculateButton = document.getElementById('calculate-route');
+            const resultadoDiv = document.getElementById('resultado-ruta');
+            const listaNodos = document.getElementById('lista-nodos');
+
+            // Cargar los nodos en los selectores y en la lista
+            fetch('/nodos')
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`Error en la red: ${response.statusText}`);
+                    }
+                    return response.json();
+                })
+                .then(nodos => {
+                    if (nodos.error) {
+                        throw new Error(nodos.error);
+                    }
+                    if (nodos.length === 0) {
+                        listaNodos.innerHTML = '<li>No se encontraron nodos.</li>';
+                        return;
+                    }
+
+                    // Ordenar nodos alfabéticamente
+                    nodos.sort((a, b) => a.properties.nombre.localeCompare(b.properties.nombre));
+
+                    nodos.forEach(nodo => {
+                        const nombre = nodo.properties.nombre;
+                        // Llenar los selectores
+                        const option1 = new Option(nombre, nombre);
+                        startNodeSelect.appendChild(option1);
+
+                        const option2 = new Option(nombre, nombre);
+                        endNodeSelect.appendChild(option2);
+                        
+                        // Mostrar en la lista
+                        const item = document.createElement('li');
+                        item.innerHTML = `<pre>${JSON.stringify(nodo, null, 2)}</pre>`;
+                        listaNodos.appendChild(item);
+                    });
+                })
+                .catch(error => {
+                    console.error('Error al cargar los nodos:', error);
+                    listaNodos.innerHTML = `<li>Ocurrió un error al cargar los nodos: ${error.message}. Revisa la consola.</li>`;
+                });
+
+            // Manejar el clic del botón
+            calculateButton.addEventListener('click', () => {
+                const startNode = startNodeSelect.value;
+                const endNode = endNodeSelect.value;
+
+                if (!startNode || !endNode) {
+                    alert('Por favor, selecciona un nodo de inicio y de fin.');
+                    return;
+                }
+                
+                if (startNode === endNode) {
+                    alert('El nodo de inicio y fin no pueden ser el mismo.');
+                    return;
+                }
+
+                resultadoDiv.innerHTML = '<p>Calculando...</p>';
+
+                // Hacer la petición al backend para calcular la ruta
+                fetch(`/ruta-mas-corta?start_node=${encodeURIComponent(startNode)}&end_node=${encodeURIComponent(endNode)}`)
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error(`Error en la red: ${response.statusText}`);
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        if (data.error) {
+                            resultadoDiv.innerHTML = `<p>Error: ${data.error}</p>`;
+                            return;
+                        }
+                        if (!data.path || data.path.length === 0) {
+                            resultadoDiv.innerHTML = '<p>No se encontró una ruta entre los nodos seleccionados.</p>';
+                            return;
+                        }
+                        
+                        let html = `<h3>Ruta más corta encontrada (Costo total: ${data.total_cost.toFixed(2)} minutos)</h3><ol>`;
+                        data.path.forEach(segmento => {
+                            const props = segmento.relationship.properties;
+                            html += `<li>De <b>${segmento.start_node}</b> a <b>${segmento.end_node}</b> (Tiempo: ${props.tiempo_minutos} min, Tráfico: ${props.trafico_actual}, Estado: ${props.estado})</li>`;
+                        });
+                        html += '</ol>';
+                        resultadoDiv.innerHTML = html;
+                    })
+                    .catch(error => {
+                        console.error('Error al calcular la ruta:', error);
+                        resultadoDiv.innerHTML = `<p>Ocurrió un error al calcular la ruta: ${error.message}. Revisa la consola.</p>`;
+                    });
+            });
+        });
+    </script>
+</body>
+</html>
