@@ -40,6 +40,16 @@
             <p>Selecciona un nodo de inicio y fin y haz clic en "Calcular Ruta".</p>
         </div>
 
+        <hr>
+
+        <h2>Simulador de Tráfico por Hora</h2>
+        <div class="controles">
+            <label for="traffic-hour">Hora del día:</label>
+            <input type="range" id="traffic-hour" min="0" max="23" value="12" style="flex-grow: 1;">
+            <span id="hour-display">12:00</span>
+            <button id="simulate-route">Simular Ruta con Tráfico</button>
+        </div>
+
         <h2>Nodos Disponibles</h2>
         <ul id="lista-nodos">
             <!-- Los nodos se cargarán aquí -->
@@ -141,6 +151,72 @@
                         console.error('Error al calcular la ruta:', error);
                         resultadoDiv.innerHTML = `<p>Ocurrió un error al calcular la ruta: ${error.message}. Revisa la consola.</p>`;
                     });
+            });
+
+            const hourSlider = document.getElementById('traffic-hour');
+            const hourDisplay = document.getElementById('hour-display');
+            const simulateButton = document.getElementById('simulate-route');
+
+            hourSlider.addEventListener('input', () => {
+                hourDisplay.textContent = `${hourSlider.value.padStart(2, '0')}:00`;
+            });
+
+            simulateButton.addEventListener('click', () => {
+                const startNode = startNodeSelect.value;
+                const endNode = endNodeSelect.value;
+                const hour = hourSlider.value;
+
+                if (!startNode || !endNode) {
+                    alert('Por favor, selecciona un nodo de inicio y de fin.');
+                    return;
+                }
+
+                if (startNode === endNode) {
+                    alert('El nodo de inicio y fin no pueden ser el mismo.');
+                    return;
+                }
+
+                resultadoDiv.innerHTML = `<p>Simulando ruta para las ${hour}:00...</p>`;
+
+                fetch('/simulate', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ 
+                        hour: hour,
+                        start_node: startNode, 
+                        end_node: endNode 
+                    })
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`Error en la red: ${response.statusText}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    if (data.error) {
+                        resultadoDiv.innerHTML = `<p>Error en la simulación: ${data.error}</p>`;
+                        return;
+                    }
+                    if (!data.path || data.path.length === 0) {
+                        resultadoDiv.innerHTML = '<p>No se encontró una ruta simulada.</p>';
+                        return;
+                    }
+
+                    let html = `<h3>Ruta Simulada para las ${hour}:00 (Costo Total: ${data.total_cost.toFixed(2)} minutos)</h3><ol>`;
+                    data.path.forEach(segmento => {
+                        const props = segmento.relationship.properties;
+                        html += `<li>De <b>${segmento.start_node}</b> a <b>${segmento.end_node}</b> (Tiempo Simulado: ${ (props.tiempo_minutos * (props.peso_compuesto_simulado / props.peso_compuesto)).toFixed(2) } min, Tráfico: ${props.trafico_actual}, Estado: ${props.estado})</li>`;
+                    });
+                    html += '</ol>';
+                    resultadoDiv.innerHTML = html;
+                })
+                .catch(error => {
+                    console.error('Error al simular la ruta:', error);
+                    resultadoDiv.innerHTML = `<p>Ocurrió un error al simular la ruta: ${error.message}.</p>`;
+                });
             });
         });
     </script>
