@@ -44,11 +44,11 @@ def obtener_ruta_mas_corta():
     graph_name = "myGraph"
 
     if not start_node_name or not end_node_name:
-        return jsonify({"error": "Faltan los parámetros 'start_node' o 'end_node'"}), 400
+        return jsonify({"error": "Faltan los parametros 'start_node' o 'end_node'"}), 400
 
     try:
         with get_driver().session() as session:
-            # 🛠️ Paso 1: Crear o actualizar peso_compuesto
+            # Paso 1: Crear o actualizar peso_compuesto
             session.run("""
                 MATCH ()-[r:CONECTA]->()
                 SET r.trafico_actual_numerico = CASE r.trafico_actual
@@ -64,7 +64,7 @@ def obtener_ruta_mas_corta():
             """)
 
         with get_driver().session() as session:
-            # ⚙️ Paso 2: Verificar si el grafo existe y eliminarlo si es necesario
+            # Paso 2: Verificar si el grafo existe y eliminarlo si es necesario
             result = session.run("""
                 CALL gds.graph.exists($graph_name) YIELD exists
                 RETURN exists
@@ -76,13 +76,13 @@ def obtener_ruta_mas_corta():
                     RETURN graphName
                 """, graph_name=graph_name)
 
-            # 🔧 Paso 3: Proyectar el grafo con propiedad peso_compuesto
+            # Paso 3: Proyectar el grafo con propiedad peso_compuesto
             session.run("""
                 CALL gds.graph.project(
                     $graph_name,
                     {
                         Zona: { properties: [] },
-                        Distribuidor: { properties: [] }
+                        Distribuidor: { properties: [] } 
                     },
                     {
                         CONECTA: {
@@ -94,7 +94,7 @@ def obtener_ruta_mas_corta():
                 )
             """, graph_name=graph_name)
 
-            # 🧭 Paso 4: Obtener id(start) e id(end) para usar en Dijkstra
+            # Paso 4: Obtener id(start) e id(end) para usar en Dijkstra
             start_result = session.run("MATCH (n {nombre: $nombre}) RETURN id(n) AS id", nombre=start_node_name)
             end_result = session.run("MATCH (n {nombre: $nombre}) RETURN id(n) AS id", nombre=end_node_name)
 
@@ -107,7 +107,7 @@ def obtener_ruta_mas_corta():
             start_id = start_data["id"]
             end_id = end_data["id"]
 
-            # 🚦 Ejecutar algoritmo de Dijkstra con el peso correcto
+            # Ejecutar algoritmo de Dijkstra con el peso correcto
             result = session.run("""
                 CALL gds.shortestPath.dijkstra.stream($graph_name, {
                     sourceNode: $start_id,
@@ -125,7 +125,7 @@ def obtener_ruta_mas_corta():
             data = result.single()
 
         if not data:
-            return jsonify({"error": "No se encontró una ruta."}), 404
+            return jsonify({"error": "No se encontro una ruta."}), 404
 
         node_names = data["node_names"]
         relationships = [serialize_relationship(rel) for rel in data["relationships"]]
@@ -147,7 +147,7 @@ def obtener_ruta_mas_corta():
         import traceback
         traceback.print_exc()
         return jsonify({
-            "error": "Ocurrió un error en el servidor al calcular la ruta.",
+            "error": "Ocurrio un error en el servidor al calcular la ruta.",
             "details": str(e)
         }), 500
 
@@ -160,12 +160,12 @@ def simulate_traffic():
     graph_name = "myGraph_simulated"
 
     if not all([hour, start_node_name, end_node_name]):
-        return jsonify({"error": "Faltan los parámetros 'hour', 'start_node' o 'end_node'"}), 400
+        return jsonify({"error": "Faltan los parametros 'hour', 'start_node' o 'end_node'"}), 400
 
     try:
         hour = int(hour)
     except (ValueError, TypeError):
-        return jsonify({"error": "El parámetro 'hour' debe ser un número entero."}), 400
+        return jsonify({"error": "El parametro 'hour' debe ser un numero entero."}), 400
 
 
     # Definir el multiplicador basado en la hora
@@ -179,7 +179,7 @@ def simulate_traffic():
     try:
         with get_driver().session() as session:
             # Paso 1: Crear o actualizar peso_compuesto_simulado
-            session.run(f"""
+            session.run("""
                 MATCH ()-[r:CONECTA]->()
                 SET r.trafico_actual_numerico = CASE r.trafico_actual
                     WHEN 'bajo' THEN 1.0
@@ -195,12 +195,12 @@ def simulate_traffic():
 
             # El resto es similar a /ruta-mas-corta, pero con el nuevo peso
 
-            # ⚙️ Paso 2: Verificar si el grafo existe y eliminarlo si es necesario
+            # Paso 2: Verificar si el grafo existe y eliminarlo si es necesario
             result = session.run("CALL gds.graph.exists($graph_name) YIELD exists RETURN exists", graph_name=graph_name)
             if result.single()["exists"]:
                 session.run("CALL gds.graph.drop($graph_name) YIELD graphName", graph_name=graph_name)
 
-            # 🔧 Paso 3: Proyectar el grafo con la propiedad de peso simulado
+            # Paso 3: Proyectar el grafo con la propiedad de peso simulado
             session.run('''
                 CALL gds.graph.project(
                     $graph_name,
@@ -218,7 +218,7 @@ def simulate_traffic():
                 )
             ''', graph_name=graph_name)
 
-            # 🧭 Paso 4: Obtener id(start) e id(end) para usar en Dijkstra
+            # Paso 4: Obtener id(start) e id(end) para usar en Dijkstra
             start_result = session.run("MATCH (n {nombre: $nombre}) RETURN id(n) AS id", nombre=start_node_name)
             end_result = session.run("MATCH (n {nombre: $nombre}) RETURN id(n) AS id", nombre=end_node_name)
 
@@ -231,7 +231,7 @@ def simulate_traffic():
             start_id = start_data["id"]
             end_id = end_data["id"]
 
-            # 🚦 Ejecutar algoritmo de Dijkstra con el peso simulado
+            # Ejecutar algoritmo de Dijkstra con el peso simulado
             result = session.run('''
                 CALL gds.shortestPath.dijkstra.stream($graph_name, {
                     sourceNode: $start_id,
@@ -248,7 +248,7 @@ def simulate_traffic():
             data = result.single()
 
             if not data:
-                return jsonify({"error": "No se encontró una ruta simulada."}), 404
+                return jsonify({"error": "No se encontro una ruta simulada."}), 404
 
             node_names = data["node_names"]
             relationships = [serialize_relationship(rel) for rel in data["relationships"]]
@@ -271,7 +271,7 @@ def simulate_traffic():
         import traceback
         traceback.print_exc()
         return jsonify({
-            "error": "Ocurrió un error en el servidor al simular la ruta.",
+            "error": "Ocurrio un error en el servidor al simular la ruta.",
             "details": str(e)
         }), 500
 
