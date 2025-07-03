@@ -1,7 +1,9 @@
 from flask import Flask, jsonify, render_template, request
+from flask_cors import CORS
 from neo4j import GraphDatabase, basic_auth
 
 app = Flask(__name__)
+CORS(app)
 
 URI = "bolt://localhost:7687"
 AUTH = basic_auth("neo4j", "password")
