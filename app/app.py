@@ -188,10 +188,10 @@ def simulate_traffic():
                     ELSE 1.0
                 END,
                 r.peso_compuesto_simulado = 
-                    (coalesce(r.tiempo_minutos, 0) * {time_multiplier}) * 0.6 + 
+                    (coalesce(r.tiempo_minutos, 0) * $time_multiplier) * 0.6 + 
                     coalesce(r.trafico_actual_numerico, 0) * 0.3 + 
                     coalesce(r.trafico_numerico, 0) * 0.1
-            """)
+            """, time_multiplier=time_multiplier)
 
             # El resto es similar a /ruta-mas-corta, pero con el nuevo peso
 

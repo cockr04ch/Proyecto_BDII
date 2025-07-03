@@ -140,6 +140,7 @@
                         }
                         
                         let html = `<h3>Ruta más corta encontrada (Costo total: ${data.total_cost.toFixed(2)} minutos)</h3><ol>`;
+                        console.log("DATA RECIBIDA:", data);
                         data.path.forEach(segmento => {
                             const props = segmento.relationship.properties;
                             html += `<li>De <b>${segmento.start_node}</b> a <b>${segmento.end_node}</b> (Tiempo: ${props.tiempo_minutos} min, Tráfico: ${props.trafico_actual}, Estado: ${props.estado})</li>`;
